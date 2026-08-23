@@ -7,6 +7,7 @@ export default function ChooseTemplate() {
   const navigate = useNavigate()
   const { state } = useLocation()
   const clientId = state?.clientId || null
+  const partyConfig = state?.partyConfig || null
   const [templates, setTemplates] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -25,13 +26,15 @@ export default function ChooseTemplate() {
   }
 
   function openTemplate(t) {
-    navigate('/template-editor', { state: { templateId: t.id, clientId } })
+    navigate('/template-editor', { state: { templateId: t.id, clientId, partyConfig } })
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-blue-900 text-white px-6 py-4 flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="text-blue-200 hover:text-white text-lg">←</button>
+        <button
+          onClick={() => clientId ? navigate('/document-setup', { state: { clientId } }) : navigate('/dashboard')}
+          className="text-blue-200 hover:text-white text-lg">←</button>
         <h1 className="text-lg font-bold">Choose Template</h1>
         {clientId && <span className="bg-blue-700 text-blue-100 text-xs px-2 py-1 rounded-full ml-auto">Client Selected</span>}
       </header>

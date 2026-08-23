@@ -4,15 +4,16 @@ import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
 
 export default function Login() {
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
 
   async function handleLogin(e) {
     e.preventDefault()
-    if (!email || !password) return toast.error('Enter email and password')
+    if (!username || !password) return toast.error('Enter username and password')
     setLoading(true)
+    const email = `${username.trim().toLowerCase()}@legalease.app`
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     setLoading(false)
     if (error) return toast.error(error.message)
@@ -31,13 +32,14 @@ export default function Login() {
         </div>
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
             <input
-              type="email"
+              type="text"
+              autoComplete="username"
               className="input-field"
-              placeholder="you@lawfirm.com"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
+              placeholder="your username"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
               disabled={loading}
             />
           </div>

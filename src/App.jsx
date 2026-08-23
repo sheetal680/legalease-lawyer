@@ -2,11 +2,11 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import Login from './pages/Login'
 import AuthCallback from './pages/AuthCallback'
-import ProfileSetup from './pages/ProfileSetup'
 import Dashboard from './pages/Dashboard'
 import AddAssociate from './pages/AddAssociate'
 import AddClient from './pages/AddClient'
 import ChooseClient from './pages/ChooseClient'
+import DocumentSetup from './pages/DocumentSetup'
 import ChooseTemplate from './pages/ChooseTemplate'
 import TemplateEditor from './pages/TemplateEditor'
 
@@ -18,11 +18,10 @@ function Spinner() {
   )
 }
 
-function Protected({ children, needsProfile = true }) {
-  const { user, profile, loading } = useAuth()
+function Protected({ children }) {
+  const { user, loading } = useAuth()
   if (loading) return <Spinner />
   if (!user) return <Navigate to="/login" replace />
-  if (needsProfile && (!profile || !profile.firm_name)) return <Navigate to="/profile-setup" replace />
   return children
 }
 
@@ -33,11 +32,11 @@ export default function App() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
-        <Route path="/profile-setup" element={<Protected needsProfile={false}><ProfileSetup /></Protected>} />
         <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
         <Route path="/add-associate" element={<Protected><AddAssociate /></Protected>} />
         <Route path="/add-client" element={<Protected><AddClient /></Protected>} />
         <Route path="/choose-client" element={<Protected><ChooseClient /></Protected>} />
+        <Route path="/document-setup" element={<Protected><DocumentSetup /></Protected>} />
         <Route path="/choose-template" element={<Protected><ChooseTemplate /></Protected>} />
         <Route path="/template-editor" element={<Protected><TemplateEditor /></Protected>} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

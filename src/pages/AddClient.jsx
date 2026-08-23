@@ -32,6 +32,7 @@ export default function AddClient() {
     if (!form.party_type) return toast.error('Select Plaintiff or Defendant')
     setLoading(true)
     const { error } = await supabase.from('clients').insert({
+      firm_owner_id: user.id,
       advocate_id: user.id,
       full_name: form.full_name.trim(),
       address: form.address.trim() || null,

@@ -21,3 +21,69 @@ body {
 .card {
   @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6;
 }
+
+/* ── Document surface ──────────────────────────────────────────────
+   The paper is always white with black ink, whatever the phone's OS or
+   browser dark mode says. `color-scheme: only light` opts this subtree out
+   of both UA dark styling and Chrome on Android's automatic page darkening;
+   the explicit colours below make sure nothing is left for it to invert.
+   Scoped to the document surface on purpose — the surrounding app chrome is
+   free to follow the device theme. */
+.doc-surface {
+  color-scheme: only light;
+  background-color: #ffffff;
+}
+
+.doc-toolbar {
+  /* Single row on every screen width; the row scrolls sideways rather than
+     wrapping onto three lines and swallowing the phone screen. */
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.doc-viewport {
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+  background-color: #ffffff;
+  /* Leave pinch-zoom and panning to the browser so the advocate can zoom in
+     to read or edit fine detail, exactly like a PDF viewer. */
+  touch-action: pan-x pan-y pinch-zoom;
+}
+
+/* Fixed A4 geometry. This width is never relaxed — not at any breakpoint —
+   because a court form's line breaks, tab gaps and right-aligned text are
+   only correct at the page width the PDF is rendered at. */
+.doc-page {
+  box-sizing: border-box;
+  padding: 48px;
+  min-height: 1123px; /* A4 height at 96dpi */
+  background: #ffffff;
+  color: #000000;
+}
+
+.doc-page .ProseMirror {
+  background: #ffffff;
+  color: #000000;
+}
+
+/* Visual-only marker for the editor; the exported HTML for PDF/Word never
+   includes this stylesheet, so it stays invisible there — only the inline
+   page-break-before style (set by the node itself) carries into exports. */
+.ProseMirror .page-break-marker {
+  border-top: 2px dashed #94a3b8;
+  margin: 1.5rem 0 !important;
+  position: relative;
+}
+.ProseMirror .page-break-marker::after {
+  content: 'Page break';
+  position: absolute;
+  top: -0.7em;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #f8fafc;
+  padding: 0 0.5em;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
