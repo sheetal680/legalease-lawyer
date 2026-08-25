@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { parseManualFields, yearMismatch } from '../lib/manualFields'
+import { parseManualFields, yearMismatch, labelDuplicated } from '../lib/manualFields'
 import toast from 'react-hot-toast'
 
 // Q&A step between Choose Template and the Editor. Asks only for the blanks a
@@ -123,6 +123,13 @@ export default function TemplateDetails() {
                   onChange={e => setAnswer(f.token, e.target.value)}
                   className="input-field qa-input mt-2"
                 />
+              )}
+
+              {labelDuplicated(answers[f.token], f.printedLabel) && (
+                <p className="text-xs text-amber-700 mt-1.5">
+                  “{f.printedLabel}” is already printed on the form, so this would read
+                  it twice. You can leave it out.
+                </p>
               )}
 
               {f.type === 'year' && yearMismatch(answers[f.token], f.prefix) && (

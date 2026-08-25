@@ -28,19 +28,43 @@ export function parseManualFields(raw) {
       const prefix = type === 'year' && typeof f.prefix === 'string' && /^\d{1,3}$/.test(f.prefix)
         ? f.prefix
         : null
+      const printedLabel = typeof f.printedLabel === 'string' && f.printedLabel.trim()
+        ? f.printedLabel.trim()
+        : null
+      const explicit = typeof f.hint === 'string' && f.hint.trim() ? f.hint.trim() : null
+      // Mechanical guidance is generated, template-specific colour is written by
+      // hand, and both are shown — a field can need each for different reasons
+      // (the police station is on two pages AND has a printed "P.S." label).
+      const hint = [yearGuidance(type, prefix), labelGuidance(printedLabel), explicit]
+        .filter(Boolean).join(' ') || null
       return {
         token: f.token,
         label: typeof f.label === 'string' && f.label.trim() ? f.label.trim() : f.token,
-        hint: typeof f.hint === 'string' && f.hint.trim() ? f.hint.trim() : defaultHint(type, prefix),
+        hint,
         type,
         prefix,
+        printedLabel,
       }
     })
 }
 
+// Most blanks on a printed form sit next to a label the form already prints —
+// "P.S. ______", "Dist. ______", "now lodged in ______ Prison". Typing the
+// label back in produces "P.S. Governorpet P.S.". Declaring `printedLabel`
+// makes the convention automatic when tagging: the wording is generated, so it
+// stays identical across every template.
+function labelGuidance(printedLabel) {
+  if (!printedLabel) return null
+  // Deliberately neutral about what the answer is: the same sentence has to
+  // read correctly for a name ("P.S."), a number ("No.") and a phrase
+  // ("Court of").
+  return `The form already prints “${printedLabel}” beside this blank — ` +
+         `no need to include it in your answer.`
+}
+
 // So tagging a pre-printed year slot needs only { type: 'year', prefix: '202' }
 // — the explanation writes itself and stays consistent across templates.
-function defaultHint(type, prefix) {
+function yearGuidance(type, prefix) {
   if (type !== 'year' || !prefix) return null
   // Use the current year as the example whenever it fits the slot, so the
   // sample the advocate reads is one they might actually type.
@@ -67,6 +91,33 @@ export function yearSuffix(value, prefix) {
   if (digits.startsWith(prefix)) return digits.slice(prefix.length)
   if (digits.length <= YEAR_LENGTH - prefix.length) return digits
   return digits  // a year that doesn't match the pre-printed prefix; emit as typed
+}
+
+// Words, lowercased and stripped of punctuation, for comparing what was typed
+// against a printed label: "P.S." and "p s" both reduce to ['ps'].
+function words(s) {
+  return (s ?? '').toString().toLowerCase().replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/).filter(Boolean)
+}
+
+// True when the answer repeats the label the form already prints, at either
+// end — "P.S. Governorpet" where the form prints "P.S." before the blank, or
+// "Central Prison" where it prints "Prison" after it.
+//
+// Compared word by word rather than as a substring, so "Psychiatric" is not
+// mistaken for a repeat of "P.S.".
+export function labelDuplicated(value, printedLabel) {
+  if (!printedLabel) return false
+  const v = words(value)
+  const target = words(printedLabel).join('')
+  if (!target || !v.length) return false
+  // Consume whole words only — never a partial one — so "Psychiatric ward" is
+  // not read as a repeat of "P.S.", while "P.S.", "PS" and "p s" all are.
+  const maxRun = Math.min(v.length - 1, 4)
+  for (let k = 1; k <= maxRun; k++) {
+    if (v.slice(0, k).join('') === target) return true
+    if (v.slice(v.length - k).join('') === target) return true
+  }
+  return false
 }
 
 // True when the advocate typed a full year that can't sit in this slot —
