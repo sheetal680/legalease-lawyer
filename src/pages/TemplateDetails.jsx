@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { parseManualFields } from '../lib/manualFields'
+import { parseManualFields, yearMismatch } from '../lib/manualFields'
 import toast from 'react-hot-toast'
 
 // Q&A step between Choose Template and the Editor. Asks only for the blanks a
@@ -113,11 +113,23 @@ export default function TemplateDetails() {
                 <input
                   id={f.token}
                   type={f.type === 'date' ? 'date' : f.type === 'number' ? 'number' : 'text'}
-                  inputMode={f.type === 'number' ? 'numeric' : undefined}
+                  inputMode={f.type === 'number' || f.type === 'year' ? 'numeric' : undefined}
+                  /* A year is asked for in full (2024) even when the form only
+                     leaves room for its last digit — the slot's pre-printed
+                     part is stripped at render time, not by the advocate. */
+                  maxLength={f.type === 'year' ? 4 : undefined}
+                  placeholder={f.type === 'year' ? '2024' : undefined}
                   value={answers[f.token] || ''}
                   onChange={e => setAnswer(f.token, e.target.value)}
                   className="input-field qa-input mt-2"
                 />
+              )}
+
+              {f.type === 'year' && yearMismatch(answers[f.token], f.prefix) && (
+                <p className="text-xs text-amber-700 mt-1.5">
+                  This form pre-prints “{f.prefix}”, so {String(answers[f.token]).replace(/\D/g, '')} does not
+                  fit that slot. It will still be filled in as typed.
+                </p>
               )}
             </div>
           ))}
