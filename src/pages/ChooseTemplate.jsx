@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { hasManualFields } from '../lib/manualFields'
 import toast from 'react-hot-toast'
 
 export default function ChooseTemplate() {
@@ -18,7 +19,7 @@ export default function ChooseTemplate() {
   async function loadTemplates() {
     const { data, error } = await supabase
       .from('admin_templates')
-      .select('id, name, file_url, file_type, created_at')
+      .select('id, name, file_url, file_type, created_at, manual_fields')
       .order('created_at', { ascending: false })
     if (error) toast.error(error.message)
     setTemplates(data || [])
@@ -26,7 +27,11 @@ export default function ChooseTemplate() {
   }
 
   function openTemplate(t) {
-    navigate('/template-editor', { state: { templateId: t.id, clientId, partyConfig } })
+    // Templates that declare manual_fields get the Template Details Q&A step
+    // first. Untagged templates go straight to the editor, exactly as before —
+    // so nothing changes for templates that haven't been tagged yet.
+    const next = hasManualFields(t.manual_fields) ? '/template-details' : '/template-editor'
+    navigate(next, { state: { templateId: t.id, clientId, partyConfig } })
   }
 
   return (

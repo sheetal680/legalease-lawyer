@@ -22,6 +22,15 @@ body {
   @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6;
 }
 
+/* Template Details answers. 16px is not cosmetic: iOS Safari zooms the whole
+   viewport when a focused field is smaller than that, which would undo the
+   fit-to-width work on the editor the advocate lands on next. Declared here
+   rather than as a `text-base` utility because .input-field's own @apply
+   text-sm is emitted later and would otherwise win. */
+.qa-input {
+  font-size: 16px;
+}
+
 /* ── Document surface ──────────────────────────────────────────────
    The paper is always white with black ink, whatever the phone's OS or
    browser dark mode says. `color-scheme: only light` opts this subtree out

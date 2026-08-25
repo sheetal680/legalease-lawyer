@@ -4,10 +4,15 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import RichTextEditor from '../components/RichTextEditor'
 import { parseDocumentHtml, parsePageMargin, parsePageFont, loadFontAssets, renderPdf, renderDocx, buildFilename } from '../lib/documentExport'
+import { parseManualFields, buildAnswerMap } from '../lib/manualFields'
 import toast from 'react-hot-toast'
 
 // ── Placeholder replacement ──────────────────────────────────────
-function applyReplacements(html, advocate, client, associates) {
+// `manualAnswers` carries the answers given on the Template Details step, keyed
+// by token. They join the same single replacement pass as the autofilled data,
+// so a hand-answered blank and an autofilled one are indistinguishable in the
+// output. Tokens with no answer fall through to the strip-to-empty rule below.
+function applyReplacements(html, advocate, client, associates, manualAnswers) {
   const fmt = (v) => v || ''
   const now = new Date()
   const today = now.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -62,6 +67,11 @@ function applyReplacements(html, advocate, client, associates) {
   map['[CLIENT_NAME_IF_PETITIONER]'] = partyType === 'Plaintiff' ? fmt(client?.full_name) : ''
   map['[CLIENT_NAME_IF_RESPONDENT]'] = partyType === 'Defendant' ? fmt(client?.full_name) : ''
 
+  // Applied last so a Template Details answer wins over a same-named autofill
+  // token, but only where the advocate actually typed something (buildAnswerMap
+  // omits blanks, so skipping a question can never wipe out autofilled data).
+  Object.assign(map, manualAnswers || {})
+
   Object.entries(map).forEach(([placeholder, value]) => {
     result = result.split(placeholder).join(value)
   })
@@ -77,7 +87,7 @@ export default function TemplateEditor() {
   const { user, profile } = useAuth()
   const navigate = useNavigate()
   const { state } = useLocation()
-  const { templateId, clientId, partyConfig } = state || {}
+  const { templateId, clientId, partyConfig, manualAnswers } = state || {}
   const richEditorRef = useRef(null)
 
   const [template, setTemplate] = useState(null)
@@ -121,10 +131,14 @@ export default function TemplateEditor() {
   }
 
   async function loadDocument(tmpl, selectedClient, currentAssociates = associates) {
+    // Answers from the Template Details step, formatted per their declared
+    // field type (a date answer renders like [DATE] does elsewhere).
+    const answerMap = buildAnswerMap(parseManualFields(tmpl.manual_fields), manualAnswers)
+
     if (tmpl.content && tmpl.content.trim().length > 0) {
       const raw = tmpl.content
       setRawHtml(raw)
-      setHtmlContent(applyReplacements(raw, profile, selectedClient || client, currentAssociates))
+      setHtmlContent(applyReplacements(raw, profile, selectedClient || client, currentAssociates, answerMap))
       return
     }
 
@@ -142,7 +156,7 @@ export default function TemplateEditor() {
         const result = await mammoth.convertToHtml({ arrayBuffer: buf })
         const raw = result.value || '<p>Could not parse document.</p>'
         setRawHtml(raw)
-        setHtmlContent(applyReplacements(raw, profile, selectedClient || client, currentAssociates))
+        setHtmlContent(applyReplacements(raw, profile, selectedClient || client, currentAssociates, answerMap))
       } catch (err) {
         toast.error('Could not load .docx file')
         setHtmlContent('<p>Error loading document.</p>')
