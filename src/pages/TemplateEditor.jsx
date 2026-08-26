@@ -96,6 +96,7 @@ export default function TemplateEditor() {
   const [htmlContent, setHtmlContent] = useState('')
   const [rawHtml, setRawHtml] = useState('')  // original parsed HTML (with placeholders)
   const [loading, setLoading] = useState(true)
+  const [clientMissing, setClientMissing] = useState(false)
 
   // ── Load on mount ────────────────────────────────────────────
   useEffect(() => {
@@ -113,11 +114,21 @@ export default function TemplateEditor() {
     if (tRes.error) { toast.error('Template not found'); navigate(-1); return }
     setTemplate(tRes.data)
 
+    // Every client-derived token — court, case number, party name — renders
+    // empty when no client is attached, which produces a document that looks
+    // finished but has silently dropped half its details. Say so rather than
+    // letting the advocate discover it after printing.
     let selectedClient = null
     if (clientId) {
       selectedClient = (cRes.data || []).find(c => c.id === clientId) || null
       setClient(selectedClient)
+      if (!selectedClient) {
+        toast.error('Client not found — court, case number and party names will be blank')
+      }
+    } else {
+      toast.error('No client selected — court, case number and party names will be blank')
     }
+    setClientMissing(!selectedClient)
 
     // Apply the advocate/associate configuration carried over from Document Setup
     let initialAssociates = []
@@ -229,6 +240,13 @@ export default function TemplateEditor() {
           </button>
         </div>
       </header>
+
+      {clientMissing && (
+        <div className="bg-amber-100 border-b border-amber-300 text-amber-900 px-4 py-2 text-sm flex-shrink-0">
+          <strong>No client attached.</strong> Court name, case number and party names are blank in this
+          document — go back and pick a client, or fill them in by hand.
+        </div>
+      )}
 
       {/* Editor */}
       <main className="flex-1 overflow-y-auto p-2 sm:p-6">
