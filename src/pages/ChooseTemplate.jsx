@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { hasManualFields } from '../lib/manualFields'
-import { resolveClientId, withClient, withFlow } from '../lib/clientSelection'
+import { withTemplate } from '../lib/clientSelection'
 import toast from 'react-hot-toast'
 
 export default function ChooseTemplate() {
   const navigate = useNavigate()
-  const { state, search } = useLocation()
-  const clientId = resolveClientId(state, search)
+  // The template is now chosen BEFORE the client, so this page knows nothing
+  // about a client and must not pretend to.
+  const { state } = useLocation()
   const partyConfig = state?.partyConfig || null
   const [templates, setTemplates] = useState([])
   const [loading, setLoading] = useState(true)
@@ -27,22 +27,20 @@ export default function ChooseTemplate() {
     setLoading(false)
   }
 
+  // Every template now goes to Document Setup next, where the client and the
+  // signing advocate are chosen. Whether the template has questions decides
+  // what comes AFTER that, not what comes now.
   function openTemplate(t) {
-    // Templates that declare manual_fields get the Template Details Q&A step
-    // first. Untagged templates go straight to the editor, exactly as before —
-    // so nothing changes for templates that haven't been tagged yet.
-    const next = hasManualFields(t.manual_fields) ? '/template-details' : '/template-editor'
-    navigate(withFlow(next, clientId, t.id), { state: { templateId: t.id, clientId, partyConfig } })
+    navigate(withTemplate('/document-setup', t.id), { state: { templateId: t.id, partyConfig } })
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-blue-900 text-white px-6 py-4 flex items-center gap-3">
         <button
-          onClick={() => clientId ? navigate(withClient('/document-setup', clientId), { state: { clientId } }) : navigate('/choose-client')}
+          onClick={() => navigate('/dashboard')}
           className="text-blue-200 hover:text-white text-lg">←</button>
         <h1 className="text-lg font-bold">Choose Template</h1>
-        {clientId && <span className="bg-blue-700 text-blue-100 text-xs px-2 py-1 rounded-full ml-auto">Client Selected</span>}
       </header>
       <div className="max-w-4xl mx-auto p-6">
         {loading ? (

@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import RichTextEditor from '../components/RichTextEditor'
 import { parseDocumentHtml, parsePageMargin, parsePageFont, loadFontAssets, renderPdf, renderDocx, buildFilename } from '../lib/documentExport'
 import { parseManualFields, buildAnswerMap } from '../lib/manualFields'
-import { resolveClientId, resolveTemplateId, withClient } from '../lib/clientSelection'
+import { resolveClientId, resolveTemplateId, withTemplate } from '../lib/clientSelection'
 import toast from 'react-hot-toast'
 
 // ── Placeholder replacement ──────────────────────────────────────
@@ -106,7 +106,7 @@ export default function TemplateEditor() {
     // point, which after a refresh is nowhere at all. Go somewhere known.
     if (!templateId) {
       toast.error('No template selected')
-      navigate(withClient('/choose-template', clientId), { replace: true })
+      navigate('/choose-template', { replace: true })
       return
     }
     loadAll()
@@ -135,7 +135,7 @@ export default function TemplateEditor() {
       toast.error(clientId
         ? 'That client could no longer be found — please pick the client again'
         : 'Pick a client first — the document needs the court and party details')
-      navigate('/choose-client', { replace: true })
+      navigate(withTemplate('/document-setup', templateId), { replace: true })
       return
     }
     setClient(selectedClient)
