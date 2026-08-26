@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { rememberClient, withClient } from '../lib/clientSelection'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
 
@@ -95,7 +96,7 @@ export default function ChooseClient() {
                       <td className="px-4 py-3 text-gray-600 max-w-[200px]">{c.address || '—'}</td>
                       <td className="px-4 py-3">
                         <button
-                          onClick={() => navigate('/document-setup', { state: { clientId: c.id } })}
+                          onClick={() => { rememberClient(c.id); navigate(withClient('/document-setup', c.id), { state: { clientId: c.id } }) }}
                           className="bg-[#1e3a5f] text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#16293f] transition whitespace-nowrap">
                           Choose Template →
                         </button>

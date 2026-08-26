@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { resolveClientId, withClient } from '../lib/clientSelection'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
 
@@ -13,8 +14,8 @@ const OPTIONS = [
 export default function DocumentSetup() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const { state } = useLocation()
-  const clientId = state?.clientId || null
+  const { state, search } = useLocation()
+  const clientId = resolveClientId(state, search)
 
   const [client, setClient] = useState(null)
   const [allAssociates, setAllAssociates] = useState([])
@@ -23,7 +24,7 @@ export default function DocumentSetup() {
   const [pickedIds, setPickedIds] = useState([])
 
   useEffect(() => {
-    if (!clientId) { toast.error('No client selected'); navigate('/dashboard'); return }
+    if (!clientId) { toast.error('No client selected'); navigate('/choose-client', { replace: true }); return }
     loadData()
   }, [clientId])
 
@@ -33,7 +34,7 @@ export default function DocumentSetup() {
       supabase.from('clients').select('*').eq('advocate_id', user.id).eq('id', clientId).single(),
       supabase.from('associates').select('*').eq('advocate_id', user.id).order('full_name'),
     ])
-    if (cRes.error) { toast.error('Client not found'); navigate('/dashboard'); return }
+    if (cRes.error) { toast.error('Client not found'); navigate('/choose-client', { replace: true }); return }
     setClient(cRes.data)
     setAllAssociates(aRes.data || [])
     setLoading(false)
@@ -59,7 +60,7 @@ export default function DocumentSetup() {
 
   function handleContinue() {
     if (!isValid) return
-    navigate('/choose-template', {
+    navigate(withClient('/choose-template', clientId), {
       state: {
         clientId,
         partyConfig: { mode, associateIds: pickedIds },

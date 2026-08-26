@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { parseManualFields, yearMismatch, labelDuplicated } from '../lib/manualFields'
+import { resolveClientId, withClient } from '../lib/clientSelection'
 import toast from 'react-hot-toast'
 
 // Q&A step between Choose Template and the Editor. Asks only for the blanks a
@@ -14,8 +15,9 @@ import toast from 'react-hot-toast'
 // freely in the editor afterwards.
 export default function TemplateDetails() {
   const navigate = useNavigate()
-  const { state } = useLocation()
-  const { templateId, clientId, partyConfig } = state || {}
+  const { state, search } = useLocation()
+  const { templateId, partyConfig } = state || {}
+  const clientId = resolveClientId(state, search)
 
   const [template, setTemplate] = useState(null)
   const [fields, setFields] = useState([])
@@ -24,7 +26,7 @@ export default function TemplateDetails() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!templateId) { toast.error('No template selected'); navigate('/choose-template', { state: { clientId, partyConfig } }); return }
+    if (!templateId) { toast.error('No template selected'); navigate(withClient('/choose-template', clientId), { state: { clientId, partyConfig } }); return }
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templateId])
@@ -42,7 +44,7 @@ export default function TemplateDetails() {
     // Belt and braces: if this page is reached for a template that turns out to
     // have no questions, don't strand the advocate on an empty form.
     if (parsed.length === 0) {
-      navigate('/template-editor', { replace: true, state: { templateId, clientId, partyConfig } })
+      navigate(withClient('/template-editor', clientId), { replace: true, state: { templateId, clientId, partyConfig } })
       return
     }
 
@@ -56,7 +58,7 @@ export default function TemplateDetails() {
   }
 
   function goToEditor() {
-    navigate('/template-editor', {
+    navigate(withClient('/template-editor', clientId), {
       state: { templateId, clientId, partyConfig, manualAnswers: answers },
     })
   }
@@ -73,7 +75,7 @@ export default function TemplateDetails() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-blue-900 text-white px-4 sm:px-6 py-4 flex items-center gap-3">
         <button
-          onClick={() => navigate('/choose-template', { state: { clientId, partyConfig } })}
+          onClick={() => navigate(withClient('/choose-template', clientId), { state: { clientId, partyConfig } })}
           className="text-blue-200 hover:text-white text-lg shrink-0"
           aria-label="Back to Choose Template">←</button>
         <h1 className="text-lg font-bold">Template Details</h1>
@@ -144,7 +146,7 @@ export default function TemplateDetails() {
 
         <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-between gap-3 pb-8">
           <button
-            onClick={() => navigate('/choose-template', { state: { clientId, partyConfig } })}
+            onClick={() => navigate(withClient('/choose-template', clientId), { state: { clientId, partyConfig } })}
             className="btn-secondary w-full sm:w-auto">
             Back
           </button>

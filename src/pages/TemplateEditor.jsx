@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import RichTextEditor from '../components/RichTextEditor'
 import { parseDocumentHtml, parsePageMargin, parsePageFont, loadFontAssets, renderPdf, renderDocx, buildFilename } from '../lib/documentExport'
 import { parseManualFields, buildAnswerMap } from '../lib/manualFields'
+import { resolveClientId } from '../lib/clientSelection'
 import toast from 'react-hot-toast'
 
 // ── Placeholder replacement ──────────────────────────────────────
@@ -86,8 +87,9 @@ function applyReplacements(html, advocate, client, associates, manualAnswers) {
 export default function TemplateEditor() {
   const { user, profile } = useAuth()
   const navigate = useNavigate()
-  const { state } = useLocation()
-  const { templateId, clientId, partyConfig, manualAnswers } = state || {}
+  const { state, search } = useLocation()
+  const { templateId, partyConfig, manualAnswers } = state || {}
+  const clientId = resolveClientId(state, search)
   const richEditorRef = useRef(null)
 
   const [template, setTemplate] = useState(null)
@@ -96,7 +98,6 @@ export default function TemplateEditor() {
   const [htmlContent, setHtmlContent] = useState('')
   const [rawHtml, setRawHtml] = useState('')  // original parsed HTML (with placeholders)
   const [loading, setLoading] = useState(true)
-  const [clientMissing, setClientMissing] = useState(false)
 
   // ── Load on mount ────────────────────────────────────────────
   useEffect(() => {
@@ -115,20 +116,22 @@ export default function TemplateEditor() {
     setTemplate(tRes.data)
 
     // Every client-derived token — court, case number, party name — renders
-    // empty when no client is attached, which produces a document that looks
-    // finished but has silently dropped half its details. Say so rather than
-    // letting the advocate discover it after printing.
-    let selectedClient = null
-    if (clientId) {
-      selectedClient = (cRes.data || []).find(c => c.id === clientId) || null
-      setClient(selectedClient)
-      if (!selectedClient) {
-        toast.error('Client not found — court, case number and party names will be blank')
-      }
-    } else {
-      toast.error('No client selected — court, case number and party names will be blank')
+    // empty when no client is attached. That produces a document which LOOKS
+    // finished but has silently dropped half its details, so the editor refuses
+    // to open at all rather than showing it. Sending the advocate back to pick
+    // a client is recoverable; handing them a plausible-looking document that
+    // is missing the court and the parties is not.
+    const selectedClient = clientId
+      ? (cRes.data || []).find(c => c.id === clientId) || null
+      : null
+    if (!selectedClient) {
+      toast.error(clientId
+        ? 'That client could no longer be found — please pick the client again'
+        : 'Pick a client first — the document needs the court and party details')
+      navigate('/choose-client', { replace: true })
+      return
     }
-    setClientMissing(!selectedClient)
+    setClient(selectedClient)
 
     // Apply the advocate/associate configuration carried over from Document Setup
     let initialAssociates = []
@@ -240,13 +243,6 @@ export default function TemplateEditor() {
           </button>
         </div>
       </header>
-
-      {clientMissing && (
-        <div className="bg-amber-100 border-b border-amber-300 text-amber-900 px-4 py-2 text-sm flex-shrink-0">
-          <strong>No client attached.</strong> Court name, case number and party names are blank in this
-          document — go back and pick a client, or fill them in by hand.
-        </div>
-      )}
 
       {/* Editor */}
       <main className="flex-1 overflow-y-auto p-2 sm:p-6">
