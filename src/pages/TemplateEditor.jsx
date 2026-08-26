@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import RichTextEditor from '../components/RichTextEditor'
 import { parseDocumentHtml, parsePageMargin, parsePageFont, loadFontAssets, renderPdf, renderDocx, buildFilename } from '../lib/documentExport'
 import { parseManualFields, buildAnswerMap } from '../lib/manualFields'
-import { resolveClientId } from '../lib/clientSelection'
+import { resolveClientId, resolveTemplateId, withClient } from '../lib/clientSelection'
 import toast from 'react-hot-toast'
 
 // ── Placeholder replacement ──────────────────────────────────────
@@ -88,8 +88,9 @@ export default function TemplateEditor() {
   const { user, profile } = useAuth()
   const navigate = useNavigate()
   const { state, search } = useLocation()
-  const { templateId, partyConfig, manualAnswers } = state || {}
+  const { partyConfig, manualAnswers } = state || {}
   const clientId = resolveClientId(state, search)
+  const templateId = resolveTemplateId(state, search)
   const richEditorRef = useRef(null)
 
   const [template, setTemplate] = useState(null)
@@ -101,7 +102,13 @@ export default function TemplateEditor() {
 
   // ── Load on mount ────────────────────────────────────────────
   useEffect(() => {
-    if (!templateId) { toast.error('No template selected'); navigate(-1); return }
+    // navigate(-1) here used to drop the advocate wherever history happened to
+    // point, which after a refresh is nowhere at all. Go somewhere known.
+    if (!templateId) {
+      toast.error('No template selected')
+      navigate(withClient('/choose-template', clientId), { replace: true })
+      return
+    }
     loadAll()
   }, [templateId])
 

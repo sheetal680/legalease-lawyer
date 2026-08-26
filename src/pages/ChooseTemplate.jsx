@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { hasManualFields } from '../lib/manualFields'
-import { resolveClientId, withClient } from '../lib/clientSelection'
+import { resolveClientId, withClient, withFlow } from '../lib/clientSelection'
 import toast from 'react-hot-toast'
 
 export default function ChooseTemplate() {
@@ -32,7 +32,7 @@ export default function ChooseTemplate() {
     // first. Untagged templates go straight to the editor, exactly as before —
     // so nothing changes for templates that haven't been tagged yet.
     const next = hasManualFields(t.manual_fields) ? '/template-details' : '/template-editor'
-    navigate(withClient(next, clientId), { state: { templateId: t.id, clientId, partyConfig } })
+    navigate(withFlow(next, clientId, t.id), { state: { templateId: t.id, clientId, partyConfig } })
   }
 
   return (

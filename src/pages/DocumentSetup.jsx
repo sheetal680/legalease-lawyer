@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { resolveClientId, withClient } from '../lib/clientSelection'
 import { useAuth } from '../context/AuthContext'
-import toast from 'react-hot-toast'
 
 const OPTIONS = [
   { id: 'advocate', icon: '⚖️', label: 'Main Advocate', desc: 'Your details (auto-filled)' },
@@ -22,9 +21,15 @@ export default function DocumentSetup() {
   const [loading, setLoading] = useState(true)
   const [mode, setMode] = useState(null)
   const [pickedIds, setPickedIds] = useState([])
+  const [loadError, setLoadError] = useState(null)
 
+  // Deliberately does NOT redirect. Choose Client is the page the advocate
+  // almost always arrives from, so bouncing back to it renders as "the button
+  // did nothing" — an invisible failure with no way to tell whether the click
+  // was lost, the client was lost, or the row was bad. Standing still and
+  // saying so is diagnosable; a silent return to the previous page is not.
   useEffect(() => {
-    if (!clientId) { toast.error('No client selected'); navigate('/choose-client', { replace: true }); return }
+    if (!clientId) return
     loadData()
   }, [clientId])
 
@@ -34,7 +39,7 @@ export default function DocumentSetup() {
       supabase.from('clients').select('*').eq('advocate_id', user.id).eq('id', clientId).single(),
       supabase.from('associates').select('*').eq('advocate_id', user.id).order('full_name'),
     ])
-    if (cRes.error) { toast.error('Client not found'); navigate('/choose-client', { replace: true }); return }
+    if (cRes.error) { setLoadError('That client could not be loaded.'); setLoading(false); return }
     setClient(cRes.data)
     setAllAssociates(aRes.data || [])
     setLoading(false)
@@ -67,6 +72,33 @@ export default function DocumentSetup() {
       },
     })
   }
+
+  // Either no client reached this page, or the one that did could not be
+  // loaded. Both are shown here rather than redirected away: this page is
+  // normally entered from Choose Client, so returning there looks like the
+  // button simply did nothing.
+  if (!clientId || loadError) return (
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-[#1e3a5f] text-white px-6 py-4 flex items-center gap-3">
+        <button onClick={() => navigate('/dashboard')} className="text-white/70 hover:text-white text-lg">←</button>
+        <h1 className="text-lg font-bold">Document Setup</h1>
+      </header>
+      <div className="max-w-2xl mx-auto p-6">
+        <div className="card text-center py-10">
+          <p className="text-lg font-semibold text-gray-800">
+            {loadError || 'No client selected'}
+          </p>
+          <p className="text-sm text-gray-500 mt-2 max-w-sm mx-auto">
+            A document needs the client’s court, case number and party details,
+            so pick the client before choosing a template.
+          </p>
+          <button onClick={() => navigate('/choose-client')} className="btn-primary mt-5">
+            Choose a client
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">

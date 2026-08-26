@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { parseManualFields, yearMismatch, labelDuplicated } from '../lib/manualFields'
-import { resolveClientId, withClient } from '../lib/clientSelection'
+import { resolveClientId, resolveTemplateId, withClient, withFlow } from '../lib/clientSelection'
 import toast from 'react-hot-toast'
 
 // Q&A step between Choose Template and the Editor. Asks only for the blanks a
@@ -16,8 +16,9 @@ import toast from 'react-hot-toast'
 export default function TemplateDetails() {
   const navigate = useNavigate()
   const { state, search } = useLocation()
-  const { templateId, partyConfig } = state || {}
+  const { partyConfig } = state || {}
   const clientId = resolveClientId(state, search)
+  const templateId = resolveTemplateId(state, search)
 
   const [template, setTemplate] = useState(null)
   const [fields, setFields] = useState([])
@@ -44,7 +45,7 @@ export default function TemplateDetails() {
     // Belt and braces: if this page is reached for a template that turns out to
     // have no questions, don't strand the advocate on an empty form.
     if (parsed.length === 0) {
-      navigate(withClient('/template-editor', clientId), { replace: true, state: { templateId, clientId, partyConfig } })
+      navigate(withFlow('/template-editor', clientId, templateId), { replace: true, state: { templateId, clientId, partyConfig } })
       return
     }
 
@@ -58,7 +59,7 @@ export default function TemplateDetails() {
   }
 
   function goToEditor() {
-    navigate(withClient('/template-editor', clientId), {
+    navigate(withFlow('/template-editor', clientId, templateId), {
       state: { templateId, clientId, partyConfig, manualAnswers: answers },
     })
   }

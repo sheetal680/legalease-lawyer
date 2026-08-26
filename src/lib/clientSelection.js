@@ -52,3 +52,28 @@ export function withClient(path, clientId) {
   if (!clientId) return path
   return `${path}${path.includes('?') ? '&' : '?'}client=${encodeURIComponent(clientId)}`
 }
+
+// The template id needs the same treatment as the client id. Carrying only the
+// client meant a refresh on the editor kept the client but lost the template,
+// so the page bailed out with "No template selected" — the flow was still
+// broken by a refresh, just one step further along.
+export function withTemplate(path, templateId) {
+  if (!templateId) return path
+  return `${path}${path.includes('?') ? '&' : '?'}template=${encodeURIComponent(templateId)}`
+}
+
+export function withFlow(path, clientId, templateId) {
+  return withTemplate(withClient(path, clientId), templateId)
+}
+
+// Unlike the client, the template is not remembered in storage: it is a
+// per-document choice, and silently resurrecting the last one on a bare URL
+// would be surprising. The URL is enough to survive a refresh.
+export function resolveTemplateId(state, search) {
+  if (state?.templateId) return state.templateId
+  try {
+    return new URLSearchParams(search || '').get('template') || null
+  } catch {
+    return null
+  }
+}
