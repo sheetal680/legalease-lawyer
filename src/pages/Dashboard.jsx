@@ -75,20 +75,12 @@ export default function Dashboard() {
 
       {/* Main */}
       <main className="max-w-3xl mx-auto p-6">
-        <h2 className="text-2xl font-bold text-[#1e3a5f] mb-1">Draft a document</h2>
-        <p className="text-gray-500 text-sm mb-6">
-          Pick the form you need — you will choose the client and the signing advocate next.
-        </p>
-
         <button
           onClick={() => navigate('/choose-template')}
           className="w-full text-left rounded-xl border-2 border-gray-100 bg-white hover:border-[#c9a84c] transition-all p-6 group">
           <div className="flex items-center gap-4">
             <span className="text-4xl">📄</span>
-            <div>
-              <h3 className="font-bold text-[#1e3a5f] text-lg group-hover:text-[#c9a84c] transition">Choose Template</h3>
-              <p className="text-gray-500 text-sm">Browse the court forms and start drafting</p>
-            </div>
+            <h3 className="font-bold text-[#1e3a5f] text-lg group-hover:text-[#c9a84c] transition">Choose Template</h3>
             <span className="ml-auto text-[#1e3a5f] group-hover:text-[#c9a84c] transition text-xl">&rarr;</span>
           </div>
         </button>
