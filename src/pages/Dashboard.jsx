@@ -63,6 +63,34 @@ function Section({ icon, title, count, open, onToggle, children }) {
   )
 }
 
+// Case-insensitive substring match across any of the given fields.
+function matches(query, fields) {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  return fields.some(f => f && String(f).toLowerCase().includes(q))
+}
+
+function NoMatches({ term }) {
+  return (
+    <p className="text-sm text-gray-400 py-2">
+      No matches for &ldquo;{term.trim()}&rdquo;.
+    </p>
+  )
+}
+
+// qa-input pins the font to 16px: .input-field is text-sm, and anything under
+// 16px makes iOS Safari zoom the viewport when the field takes focus.
+function SearchBox({ value, onChange, placeholder }) {
+  return (
+    <input
+      className="input-field qa-input mb-3"
+      placeholder={placeholder}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+    />
+  )
+}
+
 function Empty({ message, action }) {
   return (
     <p className="text-sm text-gray-400 py-2">
@@ -80,6 +108,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   // All collapsed on arrival; each toggles on its own.
   const [open, setOpen] = useState({ advocate: false, associates: false, clients: false })
+  const [associateSearch, setAssociateSearch] = useState('')
+  const [clientSearch, setClientSearch] = useState('')
 
   // Keyed on `user` rather than firing once on mount: the route guard happens
   // to resolve auth before this page renders, but relying on that means a null
@@ -101,12 +131,32 @@ export default function Dashboard() {
     setLoading(false)
   }
 
-  const toggle = key => setOpen(o => ({ ...o, [key]: !o[key] }))
+  // Collapsing a section clears its search, so reopening starts clean rather
+  // than showing a filtered subset the advocate has long forgotten typing.
+  function toggle(key) {
+    const closing = open[key]
+    setOpen(o => ({ ...o, [key]: !o[key] }))
+    if (closing) {
+      if (key === 'associates') setAssociateSearch('')
+      if (key === 'clients') setClientSearch('')
+    }
+  }
 
   async function handleSignOut() {
     await signOut()
     navigate('/login')
   }
+
+  // Filtered views for display only — the section counts stay on the full
+  // lists, because the count answers "how many do I have", not "how many am I
+  // looking at".
+  const shownAssociates = associates.filter(a =>
+    matches(associateSearch, [a.full_name, a.name, a.bar_council_number]))
+  const shownClients = clients.filter(c =>
+    matches(clientSearch, [
+      c.full_name, c.case_number, c.party_type, c.court_name,
+      c.court_place, c.phone, c.email, c.address,
+    ]))
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -161,8 +211,12 @@ export default function Dashboard() {
               {associates.length === 0 ? (
                 <Empty message="No associates yet." action="Add Associate" />
               ) : (
+                <>
+                <SearchBox value={associateSearch} onChange={setAssociateSearch}
+                  placeholder="Search associates..." />
+                {shownAssociates.length === 0 ? <NoMatches term={associateSearch} /> : (
                 <div className="space-y-3">
-                  {associates.map(a => (
+                  {shownAssociates.map(a => (
                     <div key={a.id} className="rounded-lg border border-gray-200 p-3">
                       <Details>
                         <Field label="Name" value={a.full_name || a.name} />
@@ -171,6 +225,8 @@ export default function Dashboard() {
                     </div>
                   ))}
                 </div>
+                )}
+                </>
               )}
             </Section>
 
@@ -179,8 +235,12 @@ export default function Dashboard() {
               {clients.length === 0 ? (
                 <Empty message="No clients yet." action="Add Client" />
               ) : (
+                <>
+                <SearchBox value={clientSearch} onChange={setClientSearch}
+                  placeholder="Search clients..." />
+                {shownClients.length === 0 ? <NoMatches term={clientSearch} /> : (
                 <div className="space-y-3">
-                  {clients.map(c => (
+                  {shownClients.map(c => (
                     <div key={c.id} className="rounded-lg border border-gray-200 p-3">
                       <Details>
                         <Field label="Name" value={c.full_name} />
@@ -195,6 +255,8 @@ export default function Dashboard() {
                     </div>
                   ))}
                 </div>
+                )}
+                </>
               )}
             </Section>
 

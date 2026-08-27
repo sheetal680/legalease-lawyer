@@ -12,6 +12,7 @@ export default function ChooseTemplate() {
   const partyConfig = state?.partyConfig || null
   const [templates, setTemplates] = useState([])
   const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     loadTemplates()
@@ -34,6 +35,13 @@ export default function ChooseTemplate() {
     navigate(withTemplate('/document-setup', t.id), { state: { templateId: t.id, partyConfig } })
   }
 
+  // Case-insensitive substring match on the template name — with 33 forms,
+  // scrolling to find one is the slow part of this page.
+  const q = search.trim().toLowerCase()
+  const shown = q
+    ? templates.filter(t => t.name?.toLowerCase().includes(q))
+    : templates
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-blue-900 text-white px-6 py-4 flex items-center gap-3">
@@ -53,8 +61,20 @@ export default function ChooseTemplate() {
             <p className="text-sm mt-1">Ask your admin to upload templates.</p>
           </div>
         ) : (
+          <>
+          {/* qa-input pins the font to 16px so iOS Safari does not zoom the
+              viewport when the field takes focus. */}
+          <input
+            className="input-field qa-input mb-4"
+            placeholder="Search templates..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          {shown.length === 0 ? (
+            <p className="text-sm text-gray-400 py-4">No matches for &ldquo;{search.trim()}&rdquo;.</p>
+          ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {templates.map(t => (
+            {shown.map(t => (
               <button key={t.id} onClick={() => openTemplate(t)}
                 className="card text-left hover:shadow-md hover:border-blue-200 transition-all group cursor-pointer">
                 <div className="text-3xl mb-3">{t.file_type === 'pdf' ? '📕' : '📘'}</div>
@@ -64,6 +84,8 @@ export default function ChooseTemplate() {
               </button>
             ))}
           </div>
+          )}
+          </>
         )}
       </div>
     </div>
