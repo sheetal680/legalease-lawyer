@@ -3,9 +3,10 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import RichTextEditor from '../components/RichTextEditor'
-import { parseDocumentHtml, parsePageMargin, parsePageFont, loadFontAssets, renderPdf, renderDocx, buildFilename } from '../lib/documentExport'
+import { parseDocumentHtml, parsePageMargin, parsePageFont, loadFontAssets, renderPdf, renderDocx, buildFilename, pageSetupMarkers } from '../lib/documentExport'
 import { parseManualFields, buildAnswerMap } from '../lib/manualFields'
 import { resolveClientId, resolveTemplateId, withTemplate } from '../lib/clientSelection'
+import { buildSavedName } from '../lib/savedDocuments'
 import toast from 'react-hot-toast'
 
 // ── Placeholder replacement ──────────────────────────────────────
@@ -99,6 +100,7 @@ export default function TemplateEditor() {
   const [htmlContent, setHtmlContent] = useState('')
   const [rawHtml, setRawHtml] = useState('')  // original parsed HTML (with placeholders)
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
 
   // ── Load on mount ────────────────────────────────────────────
   useEffect(() => {
@@ -191,6 +193,40 @@ export default function TemplateEditor() {
     }
   }
 
+  // ── Save a frozen copy ───────────────────────────────────────
+  // Stores the document exactly as it looks now, filed against this client.
+  // The page-setup markers are re-attached because TipTap drops unrecognised
+  // divs, so the editor's HTML has already lost them — without that, a saved
+  // copy would re-export with default margins and the wrong typeface.
+  //
+  // Nothing here is re-openable for editing: the snapshot is deliberately
+  // self-contained so it survives the template being renamed or deleted and
+  // the client record being corrected later.
+  async function saveDocument() {
+    if (saving) return
+    setSaving(true)
+    try {
+      const editorHtml = richEditorRef.current?.getHTML() || htmlContent
+      const margin = parsePageMargin(template?.content || editorHtml)
+      const font = parsePageFont(template?.content || editorHtml)
+      const snapshot = pageSetupMarkers(margin, font) + editorHtml
+      const name = buildSavedName(template?.name)
+
+      const { error } = await supabase.from('saved_documents').insert({
+        advocate_id: user.id,
+        client_id: client.id,
+        template_id: template?.id ?? null,
+        template_name: template?.name || 'Document',
+        name,
+        content: snapshot,
+      })
+      if (error) { toast.error(`Could not save: ${error.message}`); return }
+      toast.success(`Saved to ${client.full_name}'s report`)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   // ── Export PDF ───────────────────────────────────────────────
   // Builds a real vector PDF (jsPDF) from the parsed block model and saves
   // it directly — no window.print(), no dialog, no dependency on the
@@ -240,6 +276,10 @@ export default function TemplateEditor() {
         <button onClick={() => navigate(-1)} className="text-blue-200 hover:text-white text-lg">←</button>
         <h1 className="text-base font-bold flex-1 truncate">{template?.name}</h1>
         <div className="flex items-center gap-2">
+          <button onClick={saveDocument} disabled={saving}
+            className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white px-3 py-1.5 rounded text-sm font-medium transition">
+            {saving ? 'Saving…' : '💾 Save'}
+          </button>
           <button onClick={exportPDF}
             className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-sm font-medium transition">
             📄 PDF

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { withClient } from '../lib/clientSelection'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
@@ -107,9 +108,10 @@ export default function Dashboard() {
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
   // All collapsed on arrival; each toggles on its own.
-  const [open, setOpen] = useState({ advocate: false, associates: false, clients: false })
+  const [open, setOpen] = useState({ advocate: false, associates: false, clients: false, reports: false })
   const [associateSearch, setAssociateSearch] = useState('')
   const [clientSearch, setClientSearch] = useState('')
+  const [reportSearch, setReportSearch] = useState('')
 
   // Keyed on `user` rather than firing once on mount: the route guard happens
   // to resolve auth before this page renders, but relying on that means a null
@@ -139,6 +141,7 @@ export default function Dashboard() {
     if (closing) {
       if (key === 'associates') setAssociateSearch('')
       if (key === 'clients') setClientSearch('')
+      if (key === 'reports') setReportSearch('')
     }
   }
 
@@ -152,6 +155,11 @@ export default function Dashboard() {
   // looking at".
   const shownAssociates = associates.filter(a =>
     matches(associateSearch, [a.full_name, a.name, a.bar_council_number]))
+  const shownReportClients = clients.filter(c =>
+    matches(reportSearch, [
+      c.full_name, c.case_number, c.party_type, c.court_name,
+      c.court_place, c.phone, c.email, c.address,
+    ]))
   const shownClients = clients.filter(c =>
     matches(clientSearch, [
       c.full_name, c.case_number, c.party_type, c.court_name,
@@ -253,6 +261,35 @@ export default function Dashboard() {
                         <Field label="Address" value={c.address} />
                       </Details>
                     </div>
+                  ))}
+                </div>
+                )}
+                </>
+              )}
+            </Section>
+
+            <Section icon="📁" title="Client Reports" count={clients.length}
+              open={open.reports} onToggle={() => toggle('reports')}>
+              {clients.length === 0 ? (
+                <Empty message="No clients yet." action="Add Client" />
+              ) : (
+                <>
+                <SearchBox value={reportSearch} onChange={setReportSearch}
+                  placeholder="Search clients..." />
+                {shownReportClients.length === 0 ? <NoMatches term={reportSearch} /> : (
+                <div className="space-y-2">
+                  {shownReportClients.map(c => (
+                    <button key={c.id}
+                      onClick={() => navigate(withClient('/client-report', c.id), { state: { clientId: c.id } })}
+                      className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-[#c9a84c] transition group">
+                      <div className="flex items-center gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-gray-900 text-sm truncate">{c.full_name}</p>
+                          <p className="text-xs text-gray-500">Case No.: {c.case_number || '—'}</p>
+                        </div>
+                        <span className="ml-auto shrink-0 text-[#1e3a5f] group-hover:text-[#c9a84c] transition">&rarr;</span>
+                      </div>
+                    </button>
                   ))}
                 </div>
                 )}

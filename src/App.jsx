@@ -10,6 +10,7 @@ import DocumentSetup from './pages/DocumentSetup'
 import ChooseTemplate from './pages/ChooseTemplate'
 import TemplateDetails from './pages/TemplateDetails'
 import TemplateEditor from './pages/TemplateEditor'
+import ClientReport from './pages/ClientReport'
 
 function Spinner() {
   return (
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="/document-setup" element={<Protected><DocumentSetup /></Protected>} />
         <Route path="/choose-template" element={<Protected><ChooseTemplate /></Protected>} />
         <Route path="/template-details" element={<Protected><TemplateDetails /></Protected>} />
+        <Route path="/client-report" element={<Protected><ClientReport /></Protected>} />
         <Route path="/template-editor" element={<Protected><TemplateEditor /></Protected>} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

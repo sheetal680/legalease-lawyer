@@ -95,6 +95,17 @@ export function normaliseMargin(m) {
   return { top: 72, right: 72, bottom: 72, left: 72, ...m }
 }
 
+// Serialises a resolved page setup back into the marker divs the parsers above
+// read. A saved snapshot needs this because TipTap drops unrecognised divs, so
+// the editor's HTML has already lost the markers the template declared — and a
+// frozen copy must stay self-contained, re-exportable years later even if the
+// template row it came from has been renamed or deleted.
+export function pageSetupMarkers(margin, font) {
+  const m = normaliseMargin(margin)
+  return `<div data-page-margin="${m.top} ${m.right} ${m.bottom} ${m.left}"></div>` +
+         `<div data-page-font="${font}"></div>`
+}
+
 export function parsePageMargin(html, fallback = 72) {
   const doc = new DOMParser().parseFromString(html, 'text/html')
   const el = doc.querySelector('div[data-page-margin]')
