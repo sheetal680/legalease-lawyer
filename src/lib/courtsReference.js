@@ -51,3 +51,30 @@ export function findCourt(courts, { name, area } = {}) {
   // picking the wrong district's court.
   return hits.length === 1 ? hits[0] : null
 }
+
+// ── Template court matching ────────────────────────────────────────
+//
+// A template's court_types says which kinds of court the form is filed in.
+// NULL means untagged, and untagged means valid EVERYWHERE — never nowhere.
+// A form nobody has classified yet must still be reachable: a missing tag is
+// an absence of knowledge, not a statement that the form belongs in no court.
+//
+// The database refuses to store an empty array for the same reason, so NULL is
+// the only untagged representation. This still treats a non-array or an empty
+// one as untagged, because the cost of being wrong in that direction is a
+// template the advocate has to scroll past, and the cost of being wrong the
+// other way is a form that has silently vanished when they need it.
+export function templateAllowedInCourtType(template, courtType) {
+  const types = template?.court_types
+  if (!Array.isArray(types) || types.length === 0) return true
+  // No court chosen on the client yet — filtering by nothing hides nothing.
+  if (!courtType) return true
+  return types.includes(courtType)
+}
+
+// Filters a template list for a client's court. Passing no court type, or a
+// client with no court recorded, returns the list untouched.
+export function templatesForCourtType(templates, courtType) {
+  if (!courtType) return templates
+  return templates.filter(t => templateAllowedInCourtType(t, courtType))
+}
