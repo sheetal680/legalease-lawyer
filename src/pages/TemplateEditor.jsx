@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import RichTextEditor from '../components/RichTextEditor'
 import { parseDocumentHtml, parsePageMargin, parsePageFont, loadFontAssets, renderPdf, renderDocx, buildFilename, pageSetupMarkers } from '../lib/documentExport'
 import { parseManualFields, buildAnswerMap } from '../lib/manualFields'
-import { resolveClientId, resolveTemplateId, withTemplate } from '../lib/clientSelection'
+import { resolveClientId, resolveTemplateId, withClient } from '../lib/clientSelection'
 import { buildSavedName } from '../lib/savedDocuments'
 import toast from 'react-hot-toast'
 
@@ -114,7 +114,9 @@ export default function TemplateEditor() {
     // point, which after a refresh is nowhere at all. Go somewhere known.
     if (!templateId) {
       toast.error('No template selected')
-      navigate('/choose-template', { replace: true })
+      // Carry the client through: the template list is now filtered by their
+      // court, and arriving there without one bounces the advocate again.
+      navigate(withClient('/choose-template', clientId), { replace: true, state: { clientId } })
       return
     }
     loadAll()
@@ -143,7 +145,9 @@ export default function TemplateEditor() {
       toast.error(clientId
         ? 'That client could no longer be found — please pick the client again'
         : 'Pick a client first — the document needs the court and party details')
-      navigate(withTemplate('/document-setup', templateId), { replace: true })
+      // The client is the first step of the flow now, so that is where a
+      // missing one has to be fixed — Document Setup no longer offers a picker.
+      navigate('/choose-client', { replace: true })
       return
     }
     setClient(selectedClient)

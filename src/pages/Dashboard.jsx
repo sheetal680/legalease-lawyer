@@ -8,7 +8,11 @@ import toast from 'react-hot-toast'
 // Drafting is the job the advocate came here to do, so it stays on the page
 // itself. Everything else — adding records, and reading back what is stored —
 // lives behind the menu.
-const MAIN_ACTION = { label: 'Choose Template', path: '/choose-template', icon: '📄' }
+//
+// The client comes first: which forms are even applicable depends on the court
+// the client's case sits in, so there is nothing sensible to show on a template
+// list until we know who the document is for.
+const MAIN_ACTION = { label: 'Choose Client', path: '/choose-client', icon: '👤' }
 
 const MENU_ACTIONS = [
   { label: 'Add Client', path: '/add-client', icon: '👤' },

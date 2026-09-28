@@ -19,7 +19,7 @@ export default function ChooseClient() {
   async function loadClients() {
     const { data, error } = await supabase
       .from('clients')
-      .select('id, full_name, address, phone, email, case_number, party_type, court_name, court_place, created_at')
+      .select('id, full_name, address, phone, email, case_number, party_type, court_type, court_name, court_area, court_place, created_at')
       .eq('advocate_id', user.id)
       .order('created_at', { ascending: false })
     if (error) toast.error(error.message)
@@ -27,11 +27,16 @@ export default function ChooseClient() {
     setLoading(false)
   }
 
-  const filtered = clients.filter(c =>
-    c.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-    c.case_number?.toLowerCase().includes(search.toLowerCase()) ||
-    c.court_name?.toLowerCase().includes(search.toLowerCase())
-  )
+  // Everything shown in the table is searchable. An advocate looking for a
+  // client rarely remembers the field the detail lives in — they remember a
+  // phone number, or the town the court sits in.
+  const q = search.trim().toLowerCase()
+  const filtered = q
+    ? clients.filter(c => [
+        c.full_name, c.case_number, c.court_name, c.court_type,
+        c.court_area, c.court_place, c.phone, c.email, c.address,
+      ].some(f => f?.toLowerCase().includes(q)))
+    : clients
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -41,7 +46,10 @@ export default function ChooseClient() {
       </header>
       <div className="max-w-6xl mx-auto p-6">
         <div className="mb-4">
-          <input className="input-field" placeholder="Search by name, case number or court…"
+          {/* qa-input pins the font to 16px so iOS Safari does not zoom the
+              viewport when the field takes focus. */}
+          <input className="input-field qa-input"
+            placeholder="Search name, case number, court, area, phone, email or address…"
             value={search} onChange={e => setSearch(e.target.value)} />
         </div>
 
@@ -90,13 +98,13 @@ export default function ChooseClient() {
                         ) : '—'}
                       </td>
                       <td className="px-4 py-3 text-gray-600 max-w-[180px]">{c.court_name || '—'}</td>
-                      <td className="px-4 py-3 text-gray-600 max-w-[140px]">{c.court_place || '—'}</td>
+                      <td className="px-4 py-3 text-gray-600 max-w-[140px]">{c.court_area || c.court_place || '—'}</td>
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{c.phone || '—'}</td>
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{c.email || '—'}</td>
                       <td className="px-4 py-3 text-gray-600 max-w-[200px]">{c.address || '—'}</td>
                       <td className="px-4 py-3">
                         <button
-                          onClick={() => { rememberClient(c.id); navigate(withClient('/document-setup', c.id), { state: { clientId: c.id } }) }}
+                          onClick={() => { rememberClient(c.id); navigate(withClient('/choose-template', c.id), { state: { clientId: c.id } }) }}
                           className="bg-[#1e3a5f] text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#16293f] transition whitespace-nowrap">
                           Choose Template →
                         </button>

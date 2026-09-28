@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { parseManualFields, yearMismatch, labelDuplicated } from '../lib/manualFields'
-import { resolveClientId, resolveTemplateId, withFlow } from '../lib/clientSelection'
+import { resolveClientId, resolveTemplateId, withClient, withFlow } from '../lib/clientSelection'
 import toast from 'react-hot-toast'
 
 // Q&A step between Choose Template and the Editor. Asks only for the blanks a
@@ -27,7 +27,11 @@ export default function TemplateDetails() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!templateId) { toast.error('No template selected'); navigate('/choose-template', { replace: true }); return }
+    if (!templateId) {
+      toast.error('No template selected')
+      navigate(withClient('/choose-template', clientId), { replace: true, state: { clientId } })
+      return
+    }
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templateId])
