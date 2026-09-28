@@ -27,6 +27,11 @@ export async function listCourts() {
     .select('id, court_type, court_name, area')
     .order('area')
     .order('court_name')
+    // PostgREST caps an unbounded select at 1000 rows and says nothing about
+    // it. The table already holds ~720, so without this the list would start
+    // silently losing courts off the end as more are added — and a court
+    // missing from the picker is invisible, not an error.
+    .limit(5000)
 }
 
 // Distinct areas, sorted. Derived from the rows rather than stored separately
@@ -35,12 +40,20 @@ export function areasOf(courts) {
   return [...new Set(courts.map(c => c.area))].sort((a, b) => a.localeCompare(b))
 }
 
-// Court names available under the current filters. Names are unique per area,
-// so filtering by area first is what keeps the list short enough to scan.
+// Court names available under the current filters.
+//
+// Deduplicated. The same court name legitimately appears under more than one
+// area — a city listed under two spellings, a court serving a district and its
+// seat — and the name already carries its place ("Labour Court, Vijayawada"),
+// so repeats are the same entry twice, not two choices. Leaving them in also
+// gave the picker duplicate React keys, which made the rendered list disagree
+// with the filter: typing "labour" showed courts with no "labour" in the name.
 export function courtNamesFor(courts, { area, type } = {}) {
-  return courts
-    .filter(c => (!area || c.area === area) && (!type || c.court_type === type))
-    .map(c => c.court_name)
+  return [...new Set(
+    courts
+      .filter(c => (!area || c.area === area) && (!type || c.court_type === type))
+      .map(c => c.court_name)
+  )]
 }
 
 export function findCourt(courts, { name, area } = {}) {

@@ -109,7 +109,10 @@ export default function SearchableSelect({
             <li className="px-3 py-2.5 text-sm text-gray-400">{emptyHint}</li>
           ) : filtered.map((o, i) => (
             <li
-              key={o}
+              // Index is part of the key deliberately: an options list that
+              // ever contains a repeat would otherwise collide here and make
+              // the rendered list disagree with the filter.
+              key={`${i}-${o}`}
               role="option"
               aria-selected={o === value}
               // onMouseDown, not onClick: the input's blur would otherwise run
