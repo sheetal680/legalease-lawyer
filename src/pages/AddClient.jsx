@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { getCourtsForCity } from '../lib/courts'
+import { listCourts, areasOf, courtNamesFor, findCourt } from '../lib/courtsReference'
+import SearchableSelect from '../components/SearchableSelect'
 import toast from 'react-hot-toast'
 
 export default function AddClient() {
@@ -10,18 +11,52 @@ export default function AddClient() {
   const navigate = useNavigate()
   const [form, setForm] = useState({
     full_name: '', address: '', phone: '', email: '',
-    case_number: '', party_type: '', court_place: '', court_name: '',
+    case_number: '', party_type: '',
+    court_area: '', court_name: '', court_type: '',
   })
   const [courts, setCourts] = useState([])
+  const [courtsError, setCourtsError] = useState(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    const list = getCourtsForCity(form.court_place)
-    setCourts(list)
-    if (list.length > 0 && !list.includes(form.court_name)) {
-      setForm(f => ({ ...f, court_name: '' }))
-    }
-  }, [form.court_place])
+    let alive = true
+    listCourts().then(({ data, error }) => {
+      if (!alive) return
+      if (error) { setCourtsError(error.message); return }
+      setCourts(data || [])
+    })
+    return () => { alive = false }
+  }, [])
+
+  const areas = areasOf(courts)
+  const courtNames = courtNamesFor(courts, { area: form.court_area })
+
+  // Picking a court settles all three values at once: the type and the area
+  // are properties of the court, not separate things to ask the advocate for.
+  function chooseCourt(name) {
+    const court = findCourt(courts, { name, area: form.court_area })
+    setForm(f => ({
+      ...f,
+      court_name: name,
+      court_area: court?.area ?? f.court_area,
+      court_type: court?.court_type ?? '',
+    }))
+  }
+
+  // Narrowing the area can strand a court that belongs to a different one, so
+  // the court is dropped rather than left contradicting the area beside it.
+  function chooseArea(area) {
+    setForm(f => {
+      const stillValid = !f.court_name ||
+        courts.some(c => c.court_name === f.court_name && (!area || c.area === area))
+      return {
+        ...f,
+        court_area: area,
+        court_name: stillValid ? f.court_name : '',
+        court_type: stillValid ? f.court_type : '',
+      }
+    })
+  }
 
   function handle(e) { setForm(f => ({ ...f, [e.target.name]: e.target.value })) }
 
@@ -40,8 +75,13 @@ export default function AddClient() {
       email: form.email.trim() || null,
       case_number: form.case_number.trim(),
       party_type: form.party_type,
-      court_place: form.court_place.trim() || null,
+      court_type: form.court_type || null,
+      court_area: form.court_area || null,
       court_name: form.court_name || null,
+      // court_place is the older column and is what [COURT_PLACE] renders into
+      // documents. Kept in step with court_area so that token keeps resolving
+      // for clients created from here on.
+      court_place: form.court_area || null,
     })
     setLoading(false)
     if (error) return toast.error(error.message)
@@ -100,26 +140,44 @@ export default function AddClient() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Court Place</label>
-                <input name="court_place" className="input-field" placeholder="Type city (e.g. Vijayawada)"
-                  value={form.court_place} onChange={handle} disabled={loading} />
-                {form.court_place.length >= 2 && courts.length === 0 && (
-                  <p className="text-xs text-amber-600 mt-1">No courts found — you can still type the court name below.</p>
-                )}
+                <label htmlFor="court-area" className="block text-sm font-medium text-gray-700 mb-1">Court Area</label>
+                <SearchableSelect
+                  id="court-area"
+                  value={form.court_area}
+                  onChange={chooseArea}
+                  options={areas}
+                  placeholder="Search area…"
+                  disabled={loading}
+                  emptyHint="No area matches."
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Court Name</label>
-                {courts.length > 0 ? (
-                  <select name="court_name" className="input-field" value={form.court_name} onChange={handle} disabled={loading}>
-                    <option value="">Select court…</option>
-                    {courts.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                ) : (
-                  <input name="court_name" className="input-field" placeholder="Enter court name manually"
-                    value={form.court_name} onChange={handle} disabled={loading} />
+                <label htmlFor="court-name" className="block text-sm font-medium text-gray-700 mb-1">Court Name</label>
+                <SearchableSelect
+                  id="court-name"
+                  value={form.court_name}
+                  onChange={chooseCourt}
+                  options={courtNames}
+                  placeholder={form.court_area ? `Search courts in ${form.court_area}…` : 'Search courts…'}
+                  disabled={loading}
+                  emptyHint="No court matches — it may need adding to the courts list."
+                />
+                {/* The type is a property of the court, not a separate
+                    question, so it is shown once a court is chosen rather
+                    than asked for. */}
+                {form.court_type && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Court type: <span className="font-semibold text-[#1e3a5f]">{form.court_type}</span>
+                  </p>
                 )}
               </div>
             </div>
+
+            {courtsError && (
+              <p className="text-xs text-amber-600">
+                Could not load the courts list ({courtsError}). You can still save the client and set the court later.
+              </p>
+            )}
 
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={() => navigate('/dashboard')} className="btn-secondary flex-1">Cancel</button>

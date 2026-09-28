@@ -34,8 +34,14 @@ function applyReplacements(html, advocate, client, associates, manualAnswers) {
     '[CLIENT_EMAIL]': fmt(client?.email),
     '[CASE_NUMBER]': fmt(client?.case_number),
     '[PARTY_TYPE]': fmt(client?.party_type),
-    '[COURT_PLACE]': fmt(client?.court_place),
+    // court_place is the original free-text column and stays first: for the
+    // clients that predate the courts reference table it is the only value
+    // there is. court_area is the structured partner written alongside it for
+    // new clients, and backs this up if a record ever carries only the new one.
+    '[COURT_PLACE]': fmt(client?.court_place || client?.court_area),
     '[COURT_NAME]': fmt(client?.court_name),
+    '[COURT_AREA]': fmt(client?.court_area || client?.court_place),
+    '[COURT_TYPE]': fmt(client?.court_type),
     '[DATE]': today,
     '[TODAY]': today,  // legacy alias
     // Split date parts, for printed forms whose blanks read

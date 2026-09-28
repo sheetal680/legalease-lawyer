@@ -196,12 +196,12 @@ export default function Dashboard() {
   const shownReportClients = clients.filter(c =>
     matches(reportSearch, [
       c.full_name, c.case_number, c.party_type, c.court_name,
-      c.court_place, c.phone, c.email, c.address,
+      c.court_type, c.court_area, c.court_place, c.phone, c.email, c.address,
     ]))
   const shownClients = clients.filter(c =>
     matches(clientSearch, [
       c.full_name, c.case_number, c.party_type, c.court_name,
-      c.court_place, c.phone, c.email, c.address,
+      c.court_type, c.court_area, c.court_place, c.phone, c.email, c.address,
     ]))
 
   return (
@@ -338,8 +338,9 @@ export default function Dashboard() {
                       <Field label="Name" value={c.full_name} />
                       <Field label="Case No." value={c.case_number} />
                       <Field label="Party" value={c.party_type} />
+                      <Field label="Court Type" value={c.court_type} />
                       <Field label="Court" value={c.court_name} />
-                      <Field label="Court Place" value={c.court_place} />
+                      <Field label="Court Area" value={c.court_area || c.court_place} />
                       <Field label="Phone" value={c.phone} />
                       <Field label="Email" value={c.email} />
                       <Field label="Address" value={c.address} />
