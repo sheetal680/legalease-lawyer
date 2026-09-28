@@ -1,14 +1,18 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { withClient } from '../lib/clientSelection'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
 
-const ACTIONS = [
+// Drafting is the job the advocate came here to do, so it stays on the page
+// itself. Everything else — adding records, and reading back what is stored —
+// lives behind the menu.
+const MAIN_ACTION = { label: 'Choose Template', path: '/choose-template', icon: '📄' }
+
+const MENU_ACTIONS = [
   { label: 'Add Client', path: '/add-client', icon: '👤' },
   { label: 'Add Associate', path: '/add-associate', icon: '👨‍💼' },
-  { label: 'Choose Template', path: '/choose-template', icon: '📄' },
 ]
 
 // One stored value. Renders an em dash rather than nothing when a field is
@@ -112,6 +116,33 @@ export default function Dashboard() {
   const [associateSearch, setAssociateSearch] = useState('')
   const [clientSearch, setClientSearch] = useState('')
   const [reportSearch, setReportSearch] = useState('')
+  const [menuOpen, setMenuOpen] = useState(false)
+  const hamburger = useRef(null)
+  const closeButton = useRef(null)
+  // Guards the focus restore below: without it the first render would count as
+  // a close and pull focus to the hamburger on page load.
+  const wasOpen = useRef(false)
+
+  // Escape closes the drawer, and the page behind it stops scrolling while it
+  // is open: on a phone a background that scrolls under an open drawer reads
+  // as a broken overlay rather than a menu.
+  useEffect(() => {
+    if (!menuOpen) {
+      if (wasOpen.current) hamburger.current?.focus()
+      wasOpen.current = false
+      return
+    }
+    wasOpen.current = true
+    closeButton.current?.focus()
+    const onKey = e => { if (e.key === 'Escape') setMenuOpen(false) }
+    const previous = document.body.style.overflow
+    document.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = previous
+    }
+  }, [menuOpen])
 
   // Keyed on `user` rather than firing once on mount: the route guard happens
   // to resolve auth before this page renders, but relying on that means a null
@@ -145,6 +176,13 @@ export default function Dashboard() {
     }
   }
 
+  // Leaving via the drawer closes it, so coming back with the browser's back
+  // button does not land on a page with the menu still hanging open.
+  function goTo(path) {
+    setMenuOpen(false)
+    navigate(path)
+  }
+
   async function handleSignOut() {
     await signOut()
     navigate('/login')
@@ -169,25 +207,74 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-100 px-4 sm:px-6 py-4 flex items-center justify-between">
-        <h1 className="text-lg font-bold text-[#1e3a5f]">LegalEase Advocate</h1>
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            ref={hamburger}
+            onClick={() => setMenuOpen(true)}
+            aria-label="Open menu"
+            aria-expanded={menuOpen}
+            className="text-[#1e3a5f] hover:text-[#c9a84c] transition p-1 -ml-1 shrink-0">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2" strokeLinecap="round">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+          <h1 className="text-lg font-bold text-[#1e3a5f] truncate">LegalEase Advocate</h1>
+        </div>
         <button onClick={handleSignOut}
-          className="bg-[#1e3a5f] hover:bg-[#16293f] text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
+          className="bg-[#1e3a5f] hover:bg-[#16293f] text-white px-4 py-2 rounded-lg text-sm font-semibold transition shrink-0">
           Sign Out
         </button>
       </header>
 
-      <main className="max-w-6xl mx-auto p-4 sm:p-6">
-        {/* Actions come first in source order so they land on top when the
-            columns stack on a phone; on desktop `order` puts them right. */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* ── Drawer backdrop ───────────────────────────────────────
+          Kept mounted so the drawer can animate out behind it; pointer events
+          are dropped when closed so it never swallows a click on the page. */}
+      <div
+        onClick={() => setMenuOpen(false)}
+        aria-hidden="true"
+        className={`fixed inset-0 bg-black/40 z-40 transition-opacity duration-300 ${
+          menuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+      />
 
-          {/* ── Actions ─────────────────────────────────────────── */}
-          <div className="space-y-4 lg:order-2">
-            {ACTIONS.map(a => (
-              <button key={a.path} onClick={() => navigate(a.path)}
-                className="w-full text-left rounded-xl border-2 border-gray-100 bg-white hover:border-[#c9a84c] transition-all p-5 group">
-                <div className="flex items-center gap-4">
-                  <span className="text-3xl shrink-0">{a.icon}</span>
+      {/* ── Drawer ────────────────────────────────────────────────
+          `inert` while closed: the panel is only translated off-screen, so
+          without it every button inside stays reachable by Tab.
+          Near-full width on a phone, capped on desktop so the two-column
+          detail grids still have room to breathe. */}
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-label="Menu"
+        inert={menuOpen ? undefined : true}
+        className={`fixed top-0 left-0 h-full w-[88%] max-w-md bg-gray-50 z-50 shadow-2xl flex flex-col transform transition-transform duration-300 ${
+          menuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}>
+
+        <div className="flex items-center justify-between px-5 py-5 bg-[#1e3a5f] shrink-0">
+          <div>
+            <h2 className="text-white font-bold text-lg">LegalEase</h2>
+            <p className="text-[#c9a84c] text-xs">Advocate Portal</p>
+          </div>
+          <button ref={closeButton} onClick={() => setMenuOpen(false)} aria-label="Close menu"
+            className="text-white/60 hover:text-white text-2xl leading-none px-2 py-1">
+            &times;
+          </button>
+        </div>
+
+        {/* The drawer scrolls on its own, so an expanded accordion can run
+            longer than the screen without the page behind it moving. */}
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-4">
+
+          <div className="space-y-3">
+            {MENU_ACTIONS.map(a => (
+              <button key={a.path} onClick={() => goTo(a.path)}
+                className="w-full text-left rounded-xl border-2 border-gray-100 bg-white hover:border-[#c9a84c] transition-all p-4 group">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl shrink-0">{a.icon}</span>
                   <h3 className="font-bold text-[#1e3a5f] group-hover:text-[#c9a84c] transition">{a.label}</h3>
                   <span className="ml-auto text-[#1e3a5f] group-hover:text-[#c9a84c] transition text-xl">&rarr;</span>
                 </div>
@@ -195,110 +282,121 @@ export default function Dashboard() {
             ))}
           </div>
 
-          {/* ── Stored data ─────────────────────────────────────── */}
-          <div className="space-y-4 lg:col-span-2 lg:order-1">
+          <Section icon="⚖️" title="Main Advocate" count={null}
+            open={open.advocate} onToggle={() => toggle('advocate')}>
+            {profile ? (
+              <Details>
+                <Field label="Name" value={profile.full_name} />
+                <Field label="Bar Council No." value={profile.bar_council_number} />
+                <Field label="Firm" value={profile.firm_name} />
+                <Field label="Phone" value={profile.phone} />
+                <Field label="Email" value={profile.email} />
+                <Field label="Address" value={profile.address} />
+              </Details>
+            ) : (
+              <p className="text-sm text-gray-400 py-2">No profile details recorded.</p>
+            )}
+          </Section>
 
-            <Section icon="⚖️" title="Main Advocate" count={null}
-              open={open.advocate} onToggle={() => toggle('advocate')}>
-              {profile ? (
-                <Details>
-                  <Field label="Name" value={profile.full_name} />
-                  <Field label="Bar Council No." value={profile.bar_council_number} />
-                  <Field label="Firm" value={profile.firm_name} />
-                  <Field label="Phone" value={profile.phone} />
-                  <Field label="Email" value={profile.email} />
-                  <Field label="Address" value={profile.address} />
-                </Details>
-              ) : (
-                <p className="text-sm text-gray-400 py-2">No profile details recorded.</p>
+          <Section icon="👨‍💼" title="Associates" count={loading ? '…' : associates.length}
+            open={open.associates} onToggle={() => toggle('associates')}>
+            {associates.length === 0 ? (
+              <Empty message="No associates yet." action="Add Associate" />
+            ) : (
+              <>
+              <SearchBox value={associateSearch} onChange={setAssociateSearch}
+                placeholder="Search associates..." />
+              {shownAssociates.length === 0 ? <NoMatches term={associateSearch} /> : (
+              <div className="space-y-3">
+                {shownAssociates.map(a => (
+                  <div key={a.id} className="rounded-lg border border-gray-200 p-3">
+                    <Details>
+                      <Field label="Name" value={a.full_name || a.name} />
+                      <Field label="Bar Council No." value={a.bar_council_number} />
+                    </Details>
+                  </div>
+                ))}
+              </div>
               )}
-            </Section>
+              </>
+            )}
+          </Section>
 
-            <Section icon="👨‍💼" title="Associates" count={loading ? '…' : associates.length}
-              open={open.associates} onToggle={() => toggle('associates')}>
-              {associates.length === 0 ? (
-                <Empty message="No associates yet." action="Add Associate" />
-              ) : (
-                <>
-                <SearchBox value={associateSearch} onChange={setAssociateSearch}
-                  placeholder="Search associates..." />
-                {shownAssociates.length === 0 ? <NoMatches term={associateSearch} /> : (
-                <div className="space-y-3">
-                  {shownAssociates.map(a => (
-                    <div key={a.id} className="rounded-lg border border-gray-200 p-3">
-                      <Details>
-                        <Field label="Name" value={a.full_name || a.name} />
-                        <Field label="Bar Council No." value={a.bar_council_number} />
-                      </Details>
-                    </div>
-                  ))}
-                </div>
-                )}
-                </>
+          <Section icon="👤" title="Clients" count={loading ? '…' : clients.length}
+            open={open.clients} onToggle={() => toggle('clients')}>
+            {clients.length === 0 ? (
+              <Empty message="No clients yet." action="Add Client" />
+            ) : (
+              <>
+              <SearchBox value={clientSearch} onChange={setClientSearch}
+                placeholder="Search clients..." />
+              {shownClients.length === 0 ? <NoMatches term={clientSearch} /> : (
+              <div className="space-y-3">
+                {shownClients.map(c => (
+                  <div key={c.id} className="rounded-lg border border-gray-200 p-3">
+                    <Details>
+                      <Field label="Name" value={c.full_name} />
+                      <Field label="Case No." value={c.case_number} />
+                      <Field label="Party" value={c.party_type} />
+                      <Field label="Court" value={c.court_name} />
+                      <Field label="Court Place" value={c.court_place} />
+                      <Field label="Phone" value={c.phone} />
+                      <Field label="Email" value={c.email} />
+                      <Field label="Address" value={c.address} />
+                    </Details>
+                  </div>
+                ))}
+              </div>
               )}
-            </Section>
+              </>
+            )}
+          </Section>
 
-            <Section icon="👤" title="Clients" count={loading ? '…' : clients.length}
-              open={open.clients} onToggle={() => toggle('clients')}>
-              {clients.length === 0 ? (
-                <Empty message="No clients yet." action="Add Client" />
-              ) : (
-                <>
-                <SearchBox value={clientSearch} onChange={setClientSearch}
-                  placeholder="Search clients..." />
-                {shownClients.length === 0 ? <NoMatches term={clientSearch} /> : (
-                <div className="space-y-3">
-                  {shownClients.map(c => (
-                    <div key={c.id} className="rounded-lg border border-gray-200 p-3">
-                      <Details>
-                        <Field label="Name" value={c.full_name} />
-                        <Field label="Case No." value={c.case_number} />
-                        <Field label="Party" value={c.party_type} />
-                        <Field label="Court" value={c.court_name} />
-                        <Field label="Court Place" value={c.court_place} />
-                        <Field label="Phone" value={c.phone} />
-                        <Field label="Email" value={c.email} />
-                        <Field label="Address" value={c.address} />
-                      </Details>
-                    </div>
-                  ))}
-                </div>
-                )}
-                </>
-              )}
-            </Section>
-
-            <Section icon="📁" title="Client Reports" count={clients.length}
-              open={open.reports} onToggle={() => toggle('reports')}>
-              {clients.length === 0 ? (
-                <Empty message="No clients yet." action="Add Client" />
-              ) : (
-                <>
-                <SearchBox value={reportSearch} onChange={setReportSearch}
-                  placeholder="Search clients..." />
-                {shownReportClients.length === 0 ? <NoMatches term={reportSearch} /> : (
-                <div className="space-y-2">
-                  {shownReportClients.map(c => (
-                    <button key={c.id}
-                      onClick={() => navigate(withClient('/client-report', c.id), { state: { clientId: c.id } })}
-                      className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-[#c9a84c] transition group">
-                      <div className="flex items-center gap-3">
-                        <div className="min-w-0">
-                          <p className="font-semibold text-gray-900 text-sm truncate">{c.full_name}</p>
-                          <p className="text-xs text-gray-500">Case No.: {c.case_number || '—'}</p>
-                        </div>
-                        <span className="ml-auto shrink-0 text-[#1e3a5f] group-hover:text-[#c9a84c] transition">&rarr;</span>
+          <Section icon="📁" title="Client Reports" count={clients.length}
+            open={open.reports} onToggle={() => toggle('reports')}>
+            {clients.length === 0 ? (
+              <Empty message="No clients yet." action="Add Client" />
+            ) : (
+              <>
+              <SearchBox value={reportSearch} onChange={setReportSearch}
+                placeholder="Search clients..." />
+              {shownReportClients.length === 0 ? <NoMatches term={reportSearch} /> : (
+              <div className="space-y-2">
+                {shownReportClients.map(c => (
+                  <button key={c.id}
+                    onClick={() => {
+                      setMenuOpen(false)
+                      navigate(withClient('/client-report', c.id), { state: { clientId: c.id } })
+                    }}
+                    className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-[#c9a84c] transition group">
+                    <div className="flex items-center gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-900 text-sm truncate">{c.full_name}</p>
+                        <p className="text-xs text-gray-500">Case No.: {c.case_number || '—'}</p>
                       </div>
-                    </button>
-                  ))}
-                </div>
-                )}
-                </>
+                      <span className="ml-auto shrink-0 text-[#1e3a5f] group-hover:text-[#c9a84c] transition">&rarr;</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
               )}
-            </Section>
+              </>
+            )}
+          </Section>
 
-          </div>
         </div>
+      </aside>
+
+      <main className="max-w-3xl mx-auto p-4 sm:p-6">
+        <button
+          onClick={() => navigate(MAIN_ACTION.path)}
+          className="w-full text-left rounded-xl border-2 border-gray-100 bg-white hover:border-[#c9a84c] transition-all p-6 group">
+          <div className="flex items-center gap-4">
+            <span className="text-3xl shrink-0">{MAIN_ACTION.icon}</span>
+            <h3 className="font-bold text-[#1e3a5f] group-hover:text-[#c9a84c] transition">{MAIN_ACTION.label}</h3>
+            <span className="ml-auto text-[#1e3a5f] group-hover:text-[#c9a84c] transition text-xl">&rarr;</span>
+          </div>
+        </button>
       </main>
     </div>
   )
